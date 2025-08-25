@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-world-deployment
+  namespace: ai-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-world
+  template:
+    metadata:
+      labels:
+        app: hello-world
+    spec:
+      imagePullSecrets:
+        - name: nexus-secret
+      containers:
+      - name: hello-world
+        image: nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/my-repository/hello-world:v1
+        ports:
+        - containerPort: 80
