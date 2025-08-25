@@ -8,7 +8,7 @@ spec:
   containers:
   - name: dind
     image: docker:dind
-    args: ["--registry-mirror=https://mirror.gcr.io", "--storage-driver=overlay2"]
+    args: ["--insecure-registry=nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085", "--storage-driver=overlay2"]
     securityContext:
       privileged: true
     env:
