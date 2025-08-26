@@ -89,15 +89,25 @@ spec:
     }
 
     stage('Deploy') {
-      steps {
-        container('kubectl') {
-          sh '''
-            kubectl apply -n ai-ns -f k8s/deployment.yaml
-            kubectl apply -n ai-ns -f k8s/service.yaml
-            kubectl rollout status -n ai-ns deploy/hello-world-deployment
-          '''
+  steps {
+    container('kubectl') {
+      sh '''
+        set -e
+        kubectl apply -n ai-ns -f k8s/deployment.yaml
+        kubectl apply -n ai-ns -f k8s/service.yaml
+        
+        echo "🔍 Checking Deployment status..."
+        kubectl rollout status -n ai-ns deploy/hello-world-deployment --timeout=60s || {
+          echo "❌ Rollout failed, showing debug info..."
+          kubectl describe deploy hello-world-deployment -n ai-ns
+          kubectl get pods -n ai-ns -l app=hello-world -o wide
+          kubectl logs -n ai-ns -l app=hello-world --tail=50
+          exit 1
         }
-      }
+      '''
     }
+  }
+}
+
   }
 }
