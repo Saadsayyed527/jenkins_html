@@ -40,7 +40,7 @@ spec:
     REGISTRY = 'nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085'
     REPO     = 'my-repository'
     APP      = 'hello-world'
-    TAG      = 'v1'
+    TAG      = "build-${env.BUILD_NUMBER}"   // unique tag each build
     IMAGE    = "${env.REGISTRY}/${env.REPO}/${env.APP}:${env.TAG}"
   }
 
@@ -48,26 +48,19 @@ spec:
     stage('Login to Registry') {
       steps {
         container('dind') {
-          sh 'docker --version'
-          sh 'sleep 5'
           sh 'docker login $REGISTRY -u admin -p Changeme@2025'
         }
       }
     }
 
-    stage('Build') {
+    stage('Build & Push') {
       steps {
         container('dind') {
-          sh 'docker build -t $IMAGE .'
-          sh 'docker image ls $IMAGE'
-        }
-      }
-    }
-
-    stage('Push') {
-      steps {
-        container('dind') {
-          sh 'docker push $IMAGE'
+          sh '''
+            echo "🚀 Building Docker image..."
+            docker build -t $IMAGE .
+            docker push $IMAGE
+          '''
         }
       }
     }
@@ -89,25 +82,24 @@ spec:
     }
 
     stage('Deploy') {
-  steps {
-    container('kubectl') {
-      sh '''
-        set -e
-        kubectl apply -n ai-ns -f k8s/deployment.yaml
-        kubectl apply -n ai-ns -f k8s/service.yaml
-        
-        echo "🔍 Checking Deployment status..."
-        kubectl rollout status -n ai-ns deploy/hello-world-deployment --timeout=60s || {
-          echo "❌ Rollout failed, showing debug info..."
-          kubectl describe deploy hello-world-deployment -n ai-ns
-          kubectl get pods -n ai-ns -l app=hello-world -o wide
-          kubectl logs -n ai-ns -l app=hello-world --tail=50
-          exit 1
-        }
-      '''
-    }
-  }
-}
+      steps {
+        container('kubectl') {
+          sh '''
+            echo "🚀 Updating Kubernetes Deployment..."
+            kubectl set image deployment/hello-world-deployment \
+              hello-world=$IMAGE -n ai-ns --record
 
+            echo "🔍 Checking rollout status..."
+            kubectl rollout status deployment/hello-world-deployment -n ai-ns --timeout=60s || {
+              echo "❌ Rollout failed, showing debug info..."
+              kubectl describe deployment hello-world-deployment -n ai-ns
+              kubectl get pods -n ai-ns -l app=hello-world -o wide
+              kubectl logs -n ai-ns -l app=hello-world --tail=50
+              exit 1
+            }
+          '''
+        }
+      }
+    }
   }
 }
