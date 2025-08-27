@@ -59,6 +59,7 @@ spec:
       steps {
         container('dind') {
           sh '''
+            # 🟢 CHANGE: Delete old image locally before building new one
             echo "🗑️ Deleting old image if exists..."
             docker rmi -f $IMAGE || true
 
